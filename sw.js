@@ -1,5 +1,5 @@
 // Servis radnik — omogućava da app radi i bez interneta (offline) i da se instalira.
-const CACHE_NAME = 'proracun-app-v1';
+const CACHE_NAME = 'proracun-app-v2';
 const ASSETS_TO_CACHE = [
   './ProracunApp.html',
   './manifest.json',
