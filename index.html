@@ -432,7 +432,7 @@
     <p class="hint" style="margin-top:10px;">Pre desete godine razlika je uvek negativna — najbliže je u 9. godini, kad nedostaje samo 3.167 €. Dakle, u ovom modelu, prodaja Augsburga pre isteka 9. godine ne bi bila dovoljna da u potpunosti otplati Weißenfels; tek od 10. godine nadalje neto prihod od Augsburga premašuje procenjeni preostali dug Weißenfelsa.</p>
 
     <h3 style="font-family:'Fraunces',serif;font-size:15px;margin:22px 0 8px;color:var(--ink-2)">Stvarni neto rezultat — uz Kaufnebenkosten (prateće troškove kupovine)</h3>
-    <p class="hint">Gornji rezultat od 13.600,93 € gotovinskog viška ne uračunava prateće troškove kupovine (Kaufnebenkosten) plaćene iz sopstvenog kapitala u trenutku kupovine — taj novac je već izašao iz domaćinstva pre nego što je bilo kakav prihod od kirije uopšte počeo. Kvačicom ispod biraš da li se u obračun uračunavaju Kaufnebenkosten samo za Augsburg (stan koji se kupuje u ovom scenariju, od oktobra 2027.) ili za oba stana zajedno.</p>
+    <p class="hint">Gornji rezultat od 13.600,93 € gotovinskog viška ne uračunava prateće troškove kupovine (Kaufnebenkosten) plaćene iz sopstvenog kapitala u trenutku kupovine — taj novac je već izašao iz domaćinstva pre nego što je bilo kakav prihod od kirije uopšte počeo. Kvačicom ispod biraš da li se u obračun uračunavaju Kaufnebenkosten samo za Augsburg (stan koji se kupuje u ovom scenariju, od oktobra 2027.) ili za oba stana zajedno. Ako je u sekciji 03 uključena kvačica za projekciju plaćene stanarine (Miete — zakup Mühldorf am Inn), taj iznos se automatski dodaje kao još jedan stvarni odliv novca iz domaćinstva.</p>
     <div class="card" style="background:var(--paper-2);margin:0 0 16px;padding:14px 16px;">
       <label style="display:flex;align-items:flex-start;gap:10px;font-family:'JetBrains Mono',monospace;font-size:12.5px;cursor:pointer;line-height:1.5;">
         <input type="checkbox" id="kaufnebenkostenBothToggle" style="margin-top:3px;accent-color:var(--brass-dark);" onchange="toggleKaufnebenkostenBoth(this.checked)">
@@ -443,6 +443,7 @@
       <tr><td>Gotovinski višak nakon prodaje Augsburga i otplate oba duga (iz obračuna iznad)</td><td style="text-align:right;font-family:'JetBrains Mono',monospace">13.600,93 €</td></tr>
       <tr><td>− Kaufnebenkosten Augsburg (uvek uračunato u ovom scenariju)</td><td style="text-align:right;font-family:'JetBrains Mono',monospace" class="surplus-neg">−19.072,20 €</td></tr>
       <tr id="kaufnebenkostenWeissenfelsRow" style="display:none;"><td>− Kaufnebenkosten Weißenfels</td><td style="text-align:right;font-family:'JetBrains Mono',monospace" class="surplus-neg">−15.055,20 €</td></tr>
+      <tr id="kaufnebenkostenRentRow" style="display:none;"><td>− Plaćena stanarina Mühldorf am Inn (10 god., sekcija 03)</td><td style="text-align:right;font-family:'JetBrains Mono',monospace" class="surplus-neg" id="kaufnebenkostenRentAmount">−132.000,00 €</td></tr>
     </table>
     <div class="summary-strip" style="grid-template-columns:1fr;margin-top:14px;">
       <div class="stat">
@@ -792,6 +793,7 @@ function save(){
   localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
   renderMonthly();
   renderRentProjection();
+  if(document.getElementById('kaufnebenkostenNetResult')) renderKaufnebenkosten();
 }
 function syncAugsburgUI(){
   document.getElementById('augsburgToggle').checked = data.augsburgOn;
@@ -812,7 +814,14 @@ function renderKaufnebenkosten(){
   const kAugsburg = AUGSBURG_PARAMS.kaufpreis*(AUGSBURG_PARAMS.grunderwerb+AUGSBURG_PARAMS.notar+AUGSBURG_PARAMS.makler);
   const kWeissenfels = WEISSENFELS_PARAMS.kaufpreis*(WEISSENFELS_PARAMS.grunderwerb+WEISSENFELS_PARAMS.notar+WEISSENFELS_PARAMS.makler);
   const both = !!data.kaufnebenkostenBothOn;
-  const total = kAugsburg + (both ? kWeissenfels : 0);
+  const rentOn = !!data.rentProjectionOn;
+  const rentTotal = rentOn ? calcRentProjection().total : 0;
+
+  const rentRow = document.getElementById('kaufnebenkostenRentRow');
+  if(rentRow) rentRow.style.display = rentOn ? 'table-row' : 'none';
+  if(rentOn) document.getElementById('kaufnebenkostenRentAmount').textContent = '−' + fmt(rentTotal);
+
+  const total = kAugsburg + (both ? kWeissenfels : 0) + rentTotal;
   const net = surplus - total;
 
   const netEl = document.getElementById('kaufnebenkostenNetResult');
@@ -820,13 +829,15 @@ function renderKaufnebenkosten(){
   netEl.style.color = net>=0 ? '#8fd7ac' : '#e8a397';
 
   const noteEl = document.getElementById('kaufnebenkostenNote');
-  const kostText = both
-    ? `Kaufnebenkosten oba stana (Augsburg ${fmt(kAugsburg)} + Weißenfels ${fmt(kWeissenfels)} = ${fmt(total)})`
-    : `Kaufnebenkosten Augsburga (${fmt(kAugsburg)}, uloženi sopstveni kapital pri kupovini tog stana)`;
+  const kostParts = [both
+    ? `Kaufnebenkosten oba stana (Augsburg ${fmt(kAugsburg)} + Weißenfels ${fmt(kWeissenfels)} = ${fmt(kAugsburg+kWeissenfels)})`
+    : `Kaufnebenkosten Augsburga (${fmt(kAugsburg)}, uloženi sopstveni kapital pri kupovini tog stana)`];
+  if(rentOn) kostParts.push(`plaćenu stanarinu za Mühldorf am Inn tokom 10 godina (${fmt(rentTotal)}, iz sekcije 03)`);
+  const kostText = kostParts.join(' i ');
   const rezultatText = net>=0
     ? `domaćinstvo je zapravo u plusu za ${fmt(net)}`
     : `domaćinstvo je zapravo u minusu za ${fmt(Math.abs(net))}`;
-  noteEl.textContent = `Kad se od ${fmt(surplus)} gotovinskog viška oduzmu ${kostText}, ${rezultatText} — dakle, čak i u najpovoljnijem scenariju (prodaja nakon 10 godina, otplata oba kredita), ${net>=0 ? 'kupovina se u ovom modelu isplati tek nakon uračunavanja svih pratećih troškova kupovine' : 'kupovina Augsburga se, uz sve prateće troškove kupovine, u ovom modelu ne isplati ni nakon 10 godina'}.`;
+  noteEl.textContent = `Kad se od ${fmt(surplus)} gotovinskog viška oduzmu ${kostText}, ${rezultatText} — dakle, čak i u najpovoljnijem scenariju (prodaja nakon 10 godina, otplata oba kredita), ${net>=0 ? 'kupovina se u ovom modelu isplati tek nakon uračunavanja svih pratećih troškova' : 'kupovina Augsburga se, uz sve ove troškove, u ovom modelu ne isplati ni nakon 10 godina'}.` + (rentOn ? ' Napomena: period plaćanja stanarine (jul 2026–jun 2036) i period ovog scenarija prodaje (okt 2027–sep 2037) se ne poklapaju u potpunosti, pa je zbir okvirna, a ne strogo usklađena vremenska projekcija.' : '');
 }
 function resetDefaults(){
   if(confirm('Vratiti izvorne podatke iz portfolija? Sve tvoje izmene će biti izgubljene.')){
