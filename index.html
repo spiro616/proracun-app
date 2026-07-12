@@ -1667,10 +1667,11 @@ function computeMonth(year, month){
     // to su sada pravi redovi u data.expenses (vidi syncAugsburgExpenseRows), obeleženi „↳ automatski".
   }
   // Poreska olakšica (Steuererklärung) kao mesečni prosek uticaja na prihod.
-  // Weißenfels je uvek u vlasništvu -> olakšica važi čim je kvačica uključena, bez obzira na Augsburg.
+  // Weißenfels je uvek u vlasništvu -> olakšica važi čim je kvačica uključena i stan nije uklonjen
+  // iz portfelja (data.weissenfelsBuiltinRemoved), bez obzira na Augsburg.
   // Augsburg se dodaje samo ako je i taj stan uključen u proračun (i tek od meseca kupovine, 10/2027).
   if(data.taxBenefitOn){
-    income += WEISSENFELS_TAX_MONTHLY;
+    if(!data.weissenfelsBuiltinRemoved) income += WEISSENFELS_TAX_MONTHLY;
     if(data.augsburgOn && ymCompare(ym, AUGSBURG_INCOME.from, true) && ymCompare(ym, AUGSBURG_INCOME.to, false)){
       income += AUGSBURG_TAX_MONTHLY;
     }
@@ -1739,7 +1740,7 @@ function computeMonthByPerson(year, month){
     if(ymCompare(ym, AUGSBURG_INCOME.from, true) && ymCompare(ym, AUGSBURG_INCOME.to, false)) out.zajednicko.income += AUGSBURG_INCOME.amount;
   }
   if(data.taxBenefitOn){
-    out.zajednicko.income += WEISSENFELS_TAX_MONTHLY;
+    if(!data.weissenfelsBuiltinRemoved) out.zajednicko.income += WEISSENFELS_TAX_MONTHLY;
     if(data.augsburgOn && ymCompare(ym, AUGSBURG_INCOME.from, true) && ymCompare(ym, AUGSBURG_INCOME.to, false)){
       out.zajednicko.income += AUGSBURG_TAX_MONTHLY;
     }
